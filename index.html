@@ -1,47 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-us">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Pygbag Game</title>
+  <title>Jamie Bothwell Blast</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 0;
-      background: #e0e0e0;
-    }
-
-    #game-container {
-      text-align: center;
-      padding-top: 20px;
+      background-color: #e0e0e0;
     }
 
     canvas {
-      border: 1px solid #000;
-      max-width: 100%;
-      height: auto;
+      display: block;
+      margin: 0 auto;
+      border: 1px solid black;
     }
 
     #game-controls {
-      margin: 10px 0;
+      text-align: center;
+      margin-top: 10px;
     }
 
     #game-controls button {
       padding: 10px 20px;
-      font-size: 1rem;
-      margin: 0 5px;
-      cursor: pointer;
+      margin: 5px;
+      font-size: 16px;
     }
 
     #description-section {
       max-width: 800px;
       margin: 20px auto;
-      padding: 15px;
-      background-color: #ffffff;
+      padding: 20px;
+      background: #fff;
       border: 1px solid #ccc;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     #transfer {
@@ -60,7 +54,7 @@
     }
   </style>
 
-  <script type="application/javascript">
+  <script>
     config = {
       xtermjs: "1",
       _sdl2: "canvas",
@@ -79,144 +73,122 @@
 
 <body>
 
-<!-- INLINE PYTHON SCRIPT BLOCK (Required for Pygbag) -->
-<script type="module">
-import { run } from "https://pygame-web.github.io/archives/0.9/pythons.js";
+<!-- Required: INLINE PYTHON SCRIPT -->
+<script src="https://pygame-web.github.io/archives/0.9/pythons.js" type=module id=site data-LINES=57 data-CONSOLE=25 data-python=python3.12 data-os=vtx,fs,snd,gui async defer>#<!--
+print("Booting JamieBothwellBlast...")
 
-await run(async () => {
-  print("Loading game...");
+WIDTH=1024
+HEIGHT=600
+REFX = 1980
+REFY = 1080
 
-  const WIDTH = 1024;
-  const HEIGHT = 600;
-  const REFX = 1980;
-  const REFY = 1080;
+def u(real, ref, v):
+    if abs(v)<0.9999999:
+        result = int( (float(real)/100.0) * (v*1000))
+        if v<0:
+            return real-result
+        return result
+    return int( (real/ref) * v )
 
-  function u(real, ref, v) {
-    if (Math.abs(v) < 0.9999999) {
-      const result = Math.floor((real / 100.0) * (v * 1000));
-      return v < 0 ? real - result : result;
+def ux(*argv):
+    return sum([u(WIDTH, REFX, v) for v in argv])
+
+def uy(*argv):
+    return sum([u(HEIGHT, REFY, v) for v in argv])
+
+async def custom_site():
+    import platform
+    import pygame
+    import asyncio
+    import json
+    from pathlib import Path
+
+    pygame.init()
+    pygame.font.init()
+    screen = pygame.display.set_mode([ux(.8), uy(.6)], pygame.SRCALPHA, 32)
+    screen.set_colorkey((0,0,0,0), pygame.RLEACCEL)
+    screen.fill((0,0,0,0))
+    pygame.display.flip()
+
+    apk = "jamiebothwellblast.apk"
+    bundle = "jamiebothwellblast"
+    appdir = Path(f"/data/data/{bundle}")
+    appdir.mkdir()
+
+    cfg = {
+        "io": "url",
+        "type": "mount",
+        "mount": {"point": appdir.as_posix(), "path": "/"},
+        "path": f"/ => {appdir.as_posix()}"
     }
-    return Math.floor((real / ref) * v);
-  }
 
-  function ux(...vals) {
-    return vals.reduce((acc, v) => acc + u(WIDTH, REFX, v), 0);
-  }
+    track = platform.window.MM.prepare(apk, json.dumps(cfg))
+    while not track.ready:
+        pygame.display.flip()
+        await asyncio.sleep(.1)
 
-  function uy(...vals) {
-    return vals.reduce((acc, v) => acc + u(HEIGHT, REFY, v), 0);
-  }
+    main = appdir / "assets" / "main.py"
+    await shell.runpy(main)
 
-  const platform = window.platform;
-  const pygame = await import("pygame");
-  await pygame.init();
-  await pygame.font.init();
-
-  const screen = pygame.display.set_mode([ux(.8), uy(.6)], pygame.SRCALPHA, 32);
-  screen.set_colorkey([0, 0, 0, 0], pygame.RLEACCEL);
-  screen.fill([0, 0, 0, 0]);
-  pygame.display.flip();
-
-  const apk = "jamiebothwellblast.apk";
-  const bundle = "jamiebothwellblast";
-  const appdir = new window.Path(`/data/data/${bundle}`);
-  await appdir.mkdir();
-
-  const cfg = {
-    io: "url",
-    type: "mount",
-    mount: {
-      point: appdir.as_posix(),
-      path: "/",
-    },
-    path: `/ => ${appdir.as_posix()}`
-  };
-
-  const track = platform.window.MM.prepare(apk, JSON.stringify(cfg));
-
-  function pg_bar(pos) {
-    const marginx = ux(0.02);
-    const marginy = uy(0.045);
-    const total = track.len || 10;
-    const slot = ux(0.06) / total;
-    pygame.draw.rect(screen, [10, 10, 10], [marginx - ux(10), marginy - uy(10), (total * slot) + ux(20), uy(110)]);
-    pygame.draw.rect(screen, [0, 255, 0], [marginx, marginy, track.pos * slot, uy(90)]);
-  }
-
-  while (!track.ready) {
-    pg_bar(track.pos);
-    pygame.display.flip();
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  pg_bar(track.len);
-  pygame.display.flip();
-
-  const main = appdir.join("assets/main.py");
-
-  await window.shell.runpy(main);
-});
+import asyncio
+asyncio.run(custom_site())
+# -->
 </script>
 
-<!-- Transfer Status -->
+<!-- Progress bar -->
 <div id="transfer">
   <div id="status">Downloading...</div>
   <progress id="progress" value="0" max="100"></progress>
 </div>
 
-<!-- Game Canvas -->
-<div id="game-container">
-  <canvas id="canvas"
-    width="1024" height="600"
-    oncontextmenu="event.preventDefault()"
-    tabindex="1" class="emscripten">
-  </canvas>
+<!-- Canvas -->
+<canvas id="canvas"
+  width="1024" height="600"
+  oncontextmenu="event.preventDefault()"
+  tabindex="1" class="emscripten">
+</canvas>
 
-  <!-- Controls -->
-  <div id="game-controls">
-    <button id="play-button">Play</button>
-    <button id="fullscreen-button">Fullscreen</button>
-  </div>
+<!-- Controls -->
+<div id="game-controls">
+  <button id="play-button">Play</button>
+  <button id="fullscreen-button">Fullscreen</button>
 </div>
 
 <!-- Description -->
 <div id="description-section">
   <h2>About the Game</h2>
-  <p>Welcome to Jamie Bothwell Blast! Dodge and destroy enemies in this retro-style pixel shooter. Click "Play" to begin, and "Fullscreen" to hide this description for an immersive experience.</p>
+  <p>Jamie Bothwell Blast is an action-packed retro shooter. Click Play to begin, and Fullscreen for an immersive experience. This description will disappear in fullscreen mode.</p>
 </div>
 
-<!-- JS for controls -->
 <script>
-const canvas = document.getElementById("canvas");
-const playButton = document.getElementById("play-button");
-const fullscreenButton = document.getElementById("fullscreen-button");
-const description = document.getElementById("description-section");
+  const canvas = document.getElementById("canvas");
+  const playButton = document.getElementById("play-button");
+  const fullscreenButton = document.getElementById("fullscreen-button");
+  const description = document.getElementById("description-section");
 
-playButton.addEventListener("click", () => {
-  if (Module && Module.PyRun_SimpleString) {
-    Module.PyRun_SimpleString("platform.window.MM.UME = True");
-    Module.PyRun_SimpleString("shell.runpy(main)");
-  }
-  playButton.style.display = "none";
-});
+  playButton.addEventListener("click", () => {
+    if (typeof Module !== 'undefined') {
+      Module.PyRun_SimpleString("platform.window.MM.UME = True");
+      Module.PyRun_SimpleString("shell.runpy(main)");
+    } else {
+      console.warn("Module not ready yet");
+    }
+    playButton.style.display = "none";
+  });
 
-fullscreenButton.addEventListener("click", () => {
-  if (!document.fullscreenElement) {
-    canvas.requestFullscreen().catch((err) => {
-      console.error(`Fullscreen error: ${err.message}`);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-});
+  fullscreenButton.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      canvas.requestFullscreen().catch(err => {
+        console.error(`Fullscreen error: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  });
 
-document.addEventListener("fullscreenchange", () => {
-  if (document.fullscreenElement) {
-    description.style.display = "none";
-  } else {
-    description.style.display = "block";
-  }
-});
+  document.addEventListener("fullscreenchange", () => {
+    description.style.display = document.fullscreenElement ? "none" : "block";
+  });
 </script>
 
 </body>
