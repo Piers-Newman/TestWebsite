@@ -27,6 +27,7 @@
       padding: 10px 20px;
       margin: 5px;
       font-size: 16px;
+      cursor: pointer;
     }
 
     #description-section {
@@ -73,8 +74,9 @@
 
 <body>
 
-<!-- Required: INLINE PYTHON SCRIPT -->
-<script src="https://pygame-web.github.io/archives/0.9/pythons.js" type=module id=site data-LINES=57 data-CONSOLE=25 data-python=python3.12 data-os=vtx,fs,snd,gui async defer><!--
+<!-- ✅ Inline Python (required for Pygbag to mount and set up the game) -->
+<script src="https://pygame-web.github.io/archives/0.9/pythons.js" type="module" id="site" data-LINES="57" data-CONSOLE="25" data-python="python3.12" data-os="vtx,fs,snd,gui" async defer>
+<!--
 print("Booting JamieBothwellBlast...")
 
 WIDTH=1024
@@ -84,11 +86,11 @@ REFY = 1080
 
 def u(real, ref, v):
     if abs(v)<0.9999999:
-        result = int( (float(real)/100.0) * (v*1000))
+        result = int((float(real)/100.0) * (v*1000))
         if v<0:
             return real-result
         return result
-    return int( (real/ref) * v )
+    return int((real/ref) * v)
 
 def ux(*argv):
     return sum([u(WIDTH, REFX, v) for v in argv])
@@ -127,39 +129,41 @@ async def custom_site():
         pygame.display.flip()
         await asyncio.sleep(.1)
 
+    # Expose main path to JavaScript via Module object
     main = appdir / "assets" / "main.py"
-    platform.window.main_path = str(main)
+    platform.window.Module.main_path = str(main)
 
 import asyncio
 asyncio.run(custom_site())
 # -->
 </script>
 
-<!-- Progress bar -->
+<!-- ✅ Transfer bar while loading -->
 <div id="transfer">
   <div id="status">Downloading...</div>
   <progress id="progress" value="0" max="100"></progress>
 </div>
 
-<!-- Canvas -->
+<!-- ✅ Game canvas -->
 <canvas id="canvas"
   width="1024" height="600"
   oncontextmenu="event.preventDefault()"
   tabindex="1" class="emscripten">
 </canvas>
 
-<!-- Controls -->
+<!-- ✅ Play / Fullscreen buttons -->
 <div id="game-controls">
   <button id="play-button">Play</button>
   <button id="fullscreen-button">Fullscreen</button>
 </div>
 
-<!-- Description -->
+<!-- ✅ Description -->
 <div id="description-section">
   <h2>About the Game</h2>
   <p>Jamie Bothwell Blast is an action-packed retro shooter. Click Play to begin, and Fullscreen for an immersive experience. This description will disappear in fullscreen mode.</p>
 </div>
 
+<!-- ✅ JavaScript logic -->
 <script>
   const canvas = document.getElementById("canvas");
   const playButton = document.getElementById("play-button");
@@ -167,11 +171,11 @@ asyncio.run(custom_site())
   const description = document.getElementById("description-section");
 
   playButton.addEventListener("click", () => {
-    if (typeof Module !== 'undefined') {
+    if (typeof Module !== 'undefined' && Module.PyRun_SimpleString && Module.main_path) {
       Module.PyRun_SimpleString("platform.window.MM.UME = True");
-      Module.PyRun_SimpleString(`shell.runpy("${window.main_path}")`);
+      Module.PyRun_SimpleString(`shell.runpy("${Module.main_path}")`);
     } else {
-      console.warn("Module not ready yet");
+      console.warn("Module not ready or main_path not set.");
     }
     playButton.style.display = "none";
   });
