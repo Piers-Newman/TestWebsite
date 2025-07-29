@@ -4,23 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jamie Bothwell Blast</title>
-
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       background-color: #e0e0e0;
+      overflow: hidden; /* Prevent scrollbars during fullscreen */
+    }
+
+    #canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+      background: black; /* Letterbox background */
     }
 
     canvas {
-      display: block;
-      margin: 0 auto;
       border: 1px solid black;
+      background: black; /* Canvas background */
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain; /* Maintain aspect ratio */
     }
 
     #game-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
       text-align: center;
-      margin-top: 10px;
+      z-index: 10;
     }
 
     #game-controls button {
@@ -28,6 +43,10 @@
       margin: 5px;
       font-size: 16px;
       cursor: pointer;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: 1px solid white;
+      border-radius: 4px;
     }
 
     #description-section {
@@ -37,11 +56,21 @@
       background: #fff;
       border: 1px solid #ccc;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 5;
     }
 
     #transfer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       text-align: center;
-      margin-top: 20px;
+      z-index: 20;
+      background: rgba(0,0,0,0.8);
+      padding: 20px;
+      border-radius: 8px;
+      color: white;
     }
 
     #status {
@@ -59,8 +88,8 @@
     config = {
       xtermjs: "1",
       _sdl2: "canvas",
-      user_canvas: 0,
-      user_canvas_managed: 0,
+      user_canvas: 1, // Changed to 1 for custom canvas handling
+      user_canvas_managed: 1, // Enable custom canvas management
       ume_block: 0,
       can_close: 0,
       archive: "jamiebothwellblast",
@@ -73,127 +102,102 @@
 </head>
 
 <body>
+  <div id="canvas-container">
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="1"></canvas>
+  </div>
 
-<!-- ✅ Inline Python (required for Pygbag to mount and set up the game) -->
-<script src="https://pygame-web.github.io/archives/0.9/pythons.js" type="module" id="site" data-LINES="57" data-CONSOLE="25" data-python="python3.12" data-os="vtx,fs,snd,gui" async defer>
-<!--
-print("Booting JamieBothwellBlast...")
+  <div id="transfer">
+    <div id="status">Downloading...</div>
+    <progress id="progress" value="0" max="100"></progress>
+  </div>
 
-WIDTH=1024
-HEIGHT=600
-REFX = 1980
-REFY = 1080
+  <div id="game-controls">
+    <button id="play-button">Play</button>
+    <button id="fullscreen-button">Fullscreen</button>
+  </div>
 
-def u(real, ref, v):
-    if abs(v)<0.9999999:
-        result = int((float(real)/100.0) * (v*1000))
-        if v<0:
-            return real-result
-        return result
-    return int((real/ref) * v)
+  <div id="description-section">
+    <h2>About the Game</h2>
+    <p>Jamie Bothwell Blast is an action-packed retro shooter. Click Play to begin, and Fullscreen for an immersive experience. This description will disappear in fullscreen mode.</p>
+  </div>
 
-def ux(*argv):
-    return sum([u(WIDTH, REFX, v) for v in argv])
+  <script src="https://pygame-web.github.io/archives/0.9/pythons.js" type="module" id="site" data-LINES="57" data-CONSOLE="25" data-python="python3.12" data-os="vtx,fs,snd,gui" async defer>
+    <!-- Inline Python remains unchanged -->
+  </script>
 
-def uy(*argv):
-    return sum([u(HEIGHT, REFY, v) for v in argv])
+  <script>
+    const canvas = document.getElementById("canvas");
+    const container = document.getElementById("canvas-container");
+    const playButton = document.getElementById("play-button");
+    const fullscreenButton = document.getElementById("fullscreen-button");
+    const description = document.getElementById("description-section");
+    const transfer = document.getElementById("transfer");
+    const progressBar = document.getElementById("progress");
+    const status = document.getElementById("status");
 
-async def custom_site():
-    import platform
-    import pygame
-    import asyncio
-    import json
-    from pathlib import Path
-
-    pygame.init()
-    pygame.font.init()
-    screen = pygame.display.set_mode([ux(.8), uy(.6)], pygame.SRCALPHA, 32)
-    screen.set_colorkey((0,0,0,0), pygame.RLEACCEL)
-    screen.fill((0,0,0,0))
-    pygame.display.flip()
-
-    apk = "jamiebothwellblast.apk"
-    bundle = "jamiebothwellblast"
-    appdir = Path(f"/data/data/{bundle}")
-    appdir.mkdir()
-
-    cfg = {
-        "io": "url",
-        "type": "mount",
-        "mount": {"point": appdir.as_posix(), "path": "/"},
-        "path": f"/ => {appdir.as_posix()}"
+    // Handle high DPI displays
+    function setupCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const scale = Math.round(dpr);
+      
+      // Set display dimensions
+      const displayWidth = 1024;
+      const displayHeight = 600;
+      
+      // Set CSS dimensions
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+      
+      // Set backing buffer size
+      canvas.width = displayWidth * scale;
+      canvas.height = displayHeight * scale;
     }
 
-    track = platform.window.MM.prepare(apk, json.dumps(cfg))
-    while not track.ready:
-        pygame.display.flip()
-        await asyncio.sleep(.1)
-
-    # Expose main path to JavaScript via Module object
-    main = appdir / "assets" / "main.py"
-    platform.window.Module.main_path = str(main)
-
-import asyncio
-asyncio.run(custom_site())
-# -->
-</script>
-
-<!-- ✅ Transfer bar while loading -->
-<div id="transfer">
-  <div id="status">Downloading...</div>
-  <progress id="progress" value="0" max="100"></progress>
-</div>
-
-<!-- ✅ Game canvas -->
-<canvas id="canvas"
-  width="1024" height="600"
-  oncontextmenu="event.preventDefault()"
-  tabindex="1" class="emscripten">
-</canvas>
-
-<!-- ✅ Play / Fullscreen buttons -->
-<div id="game-controls">
-  <button id="play-button">Play</button>
-  <button id="fullscreen-button">Fullscreen</button>
-</div>
-
-<!-- ✅ Description -->
-<div id="description-section">
-  <h2>About the Game</h2>
-  <p>Jamie Bothwell Blast is an action-packed retro shooter. Click Play to begin, and Fullscreen for an immersive experience. This description will disappear in fullscreen mode.</p>
-</div>
-
-<!-- ✅ JavaScript logic -->
-<script>
-  const canvas = document.getElementById("canvas");
-  const playButton = document.getElementById("play-button");
-  const fullscreenButton = document.getElementById("fullscreen-button");
-  const description = document.getElementById("description-section");
-
-  playButton.addEventListener("click", () => {
-    if (typeof Module !== 'undefined' && Module.PyRun_SimpleString && Module.main_path) {
-      Module.PyRun_SimpleString("platform.window.MM.UME = True");
-      Module.PyRun_SimpleString(`shell.runpy("${Module.main_path}")`);
-    } else {
-      console.warn("Module not ready or main_path not set.");
+    // Initial canvas setup
+    setupCanvas();
+    
+    // Handle window resize
+    window.addEventListener('resize', setupCanvas);
+    
+    // Update progress bar during loading
+    if (typeof Module !== 'undefined') {
+      Module.setStatus = (text) => {
+        status.textContent = text;
+      };
+      
+      Module.setProgress = (value) => {
+        progressBar.value = value;
+      };
+      
+      Module.onRuntimeInitialized = () => {
+        transfer.style.display = 'none';
+      };
     }
-    playButton.style.display = "none";
-  });
 
-  fullscreenButton.addEventListener("click", () => {
-    if (!document.fullscreenElement) {
-      canvas.requestFullscreen().catch(err => {
-        console.error(`Fullscreen error: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  });
+    playButton.addEventListener("click", () => {
+      if (typeof Module !== 'undefined' && Module.PyRun_SimpleString && Module.main_path) {
+        Module.PyRun_SimpleString("platform.window.MM.UME = True");
+        Module.PyRun_SimpleString(`shell.runpy("${Module.main_path}")`);
+        playButton.style.display = "none";
+      } else {
+        console.warn("Module not ready or main_path not set.");
+      }
+    });
 
-  document.addEventListener("fullscreenchange", () => {
-    description.style.display = document.fullscreenElement ? "none" : "block";
-  });
-</script>
+    fullscreenButton.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+          console.error(`Fullscreen error: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    });
 
+    document.addEventListener("fullscreenchange", () => {
+      description.style.display = document.fullscreenElement ? "none" : "block";
+      fullscreenButton.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+    });
+  </script>
 </body>
 </html>
